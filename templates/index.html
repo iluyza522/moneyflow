@@ -765,12 +765,12 @@ function toggleRanking(){rankingVisible?hideRanking():showRanking()}
 function showRanking(){
   rankingVisible=true;$('btnRanking').textContent='返回';$('rankingView').style.display='block';
   $('chartArea').style.display='none';$('summaryArea').style.display='none';$('emptyState').style.display='none';
-  $('dateSelect').style.display='none';$('stockTabs').style.display='none';$('groupPanel').style.display='none';
+  $('dateSelect').style.display='none';$('stockTabs').style.display='none';
   renderSortBtns();loadRanking();
 }
 function hideRanking(){
   rankingVisible=false;$('btnRanking').textContent='全市场';$('rankingView').style.display='none';
-  $('dateSelect').style.display='';$('stockTabs').style.display='';$('groupPanel').style.display='';
+  $('dateSelect').style.display='';$('stockTabs').style.display='';
   if(activeCode)switchStock(activeCode);else hideAll();
 }
 function renderSortBtns(){
