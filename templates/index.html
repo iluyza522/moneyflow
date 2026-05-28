@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个股实时资金流向</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
+        :root {
+            --bg:#f0f2f5; --card:rgba(255,255,255,0.96); --border:rgba(0,0,0,0.06);
+            --text:#1a1a2e; --text2:#64748b; --text3:#94a3b8;
+            --accent:#0284c7; --up:#dc2626; --down:#16a34a;
+            --radius:12px; --font:'Inter','Noto Sans SC',sans-serif; --mono:'JetBrains Mono',monospace;
+        }
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh}
+        ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.1);border-radius:3px}
+
+        /* ── Header ── */
+        .header{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:blur(36px);border-bottom:1px solid var(--border)}
+        .header-line{height:1px;background:linear-gradient(90deg,transparent,rgba(2,132,199,0.4),transparent)}
+        .header-inner{max-width:1600px;margin:0 auto;padding:12px 28px;display:flex;align-items:center;gap:14px}
+        .header-logo{width:34px;height:34px;background:linear-gradient(135deg,#38bdf8,#0284c7);border-radius:8px;display:flex;align-items:center;justify-content:center}
+        .header-title{font-size:17px;font-weight:800;letter-spacing:-0.5px}
+
+        .container{max-width:1600px;margin:0 auto;padding:20px 28px}
+
+        /* ── 共用输入/按钮 ── */
+        .input-sm{
+            background:#fff;border:1px solid rgba(0,0,0,0.1);
+            border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;
+            font-family:var(--font);outline:none;transition:border-color 0.2s;
+            box-shadow:0 1px 2px rgba(0,0,0,0.04)
+        }
+        .input-sm:focus{border-color:rgba(2,132,199,0.4);box-shadow:0 0 0 3px rgba(2,132,199,0.1)}
+        .input-sm::placeholder{color:var(--text3)}
+
+        .btn{
+            border:none;border-radius:8px;padding:8px 18px;
+            font-size:13px;font-weight:600;font-family:var(--font);cursor:pointer;
+            transition:all 0.15s;box-shadow:0 1px 2px rgba(0,0,0,0.06)
+        }
+        .btn:hover{opacity:0.85;box-shadow:0 2px 6px rgba(0,0,0,0.1)}
+        .btn-primary{background:linear-gradient(135deg,#38bdf8,#0284c7);color:#fff}
+        .btn-ghost{background:rgba(124,58,237,0.08);color:#7c3aed;border:1px solid rgba(124,58,237,0.2)}
+        .btn-ghost:hover{background:rgba(124,58,237,0.14)}
+
+        select.input-sm{
+            appearance:none;-webkit-appearance:none;
+            background-image:url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2364748b' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+            background-repeat:no-repeat;background-position:right 10px center;
+            padding-right:28px;cursor:pointer
+        }
+
+        /* ── Toolbar ── */
+        .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:16px}
+        .toolbar .input-sm{width:180px}
+        .toolbar .spacer{flex:1}
+
+        /* ── Status ── */
+        .status-bar{display:flex;align-items:center;gap:8px;padding:4px 0;margin-bottom:12px;font-size:11px;color:var(--text2)}
+        .status-dot{width:6px;height:6px;border-radius:50%;background:var(--down)}
+        .status-dot.off{background:var(--text3)}
+
+        /* ── Tabs ── */
+        .stock-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+        .stock-tab{
+            display:flex;align-items:center;gap:5px;padding:6px 12px;
+            background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:8px;
+            font-size:13px;cursor:pointer;transition:all 0.15s;
+            box-shadow:0 1px 2px rgba(0,0,0,0.04)
+        }
+        .stock-tab:hover{border-color:rgba(0,0,0,0.15);box-shadow:0 2px 6px rgba(0,0,0,0.06)}
+        .stock-tab.active{border-color:rgba(2,132,199,0.4);background:rgba(2,132,199,0.06)}
+        .stock-tab .name{font-weight:600}
+        .stock-tab .code{color:var(--text2);font-family:var(--mono);font-size:11px}
+        .stock-tab .close{
+            width:15px;height:15px;border-radius:50%;background:rgba(0,0,0,0.04);
+            display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text3);
+            margin-left:2px;cursor:pointer;transition:all 0.15s
+        }
+        .stock-tab .close:hover{background:rgba(220,38,38,0.1);color:var(--up)}
+        .stock-tab.group-tab{border-color:rgba(124,58,237,0.12)}
+        .stock-tab.group-tab .name{color:#7c3aed}
+        .stock-tab.group-tab .code{color:rgba(124,58,237,0.5)}
+        .stock-tab.group-tab.active{border-color:rgba(124,58,237,0.35);background:rgba(124,58,237,0.06)}
+
+        /* ── 创建指数区 ── */
+        .group-panel{
+            display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+            margin-bottom:18px;padding:10px 14px;
+            background:#fff;border:1px solid rgba(0,0,0,0.06);border-radius:10px;
+            box-shadow:0 1px 3px rgba(0,0,0,0.04)
+        }
+        .group-panel .label{font-size:12px;color:var(--text3);margin-right:4px}
+
+        /* ── 成分股条 ── */
+        .members-bar{
+            margin-bottom:14px;font-size:12px;color:#7c3aed;
+            padding:8px 14px;background:rgba(124,58,237,0.05);
+            border-radius:8px;border:1px solid rgba(124,58,237,0.1)
+        }
+
+        /* ── Summary ── */
+        .summary{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px}
+        .summary-card{
+            background:#fff;border:1px solid rgba(0,0,0,0.06);border-radius:var(--radius);
+            padding:14px;text-align:center;
+            box-shadow:0 1px 3px rgba(0,0,0,0.04)
+        }
+        .summary-card .label{font-size:11px;color:var(--text2);margin-bottom:6px}
+        .summary-card .value{font-size:18px;font-weight:700;font-family:var(--mono)}
+        .val-pos{color:var(--up)}.val-neg{color:var(--down)}
+
+        /* ── Chart ── */
+        .chart-area{background:#fff;border:1px solid rgba(0,0,0,0.06);border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+        .chart-area h3{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+        .chart-area h3 .dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+        .chart-box{width:100%;height:300px}
+
+        .empty{text-align:center;padding:100px 20px;color:var(--text3)}
+        .empty .icon{font-size:48px;margin-bottom:16px}
+        .loading{text-align:center;padding:40px;color:var(--text2);display:none}
+        .loading .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(0,0,0,0.1);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin-right:8px;vertical-align:middle}
+        @keyframes spin{to{transform:rotate(360deg)}}
+
+        @media(max-width:768px){
+            .summary{grid-template-columns:repeat(3,1fr)}
+            .chart-box{height:250px}
+            .toolbar .input-sm{width:120px}
+        }
+
+        /* ── 全市场排名 ── */
+        .ranking-view{display:none}
+        .ranking-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+        .ranking-header .title{font-size:15px;font-weight:700}
+        .ranking-header .dt{font-size:12px;color:var(--text2)}
+        .ranking-header .spacer{flex:1}
+        .ranking-header .sort-btns{display:flex;gap:4px}
+        .sort-btn{
+            border:1px solid rgba(0,0,0,0.08);background:#fff;border-radius:6px;
+            padding:5px 10px;font-size:12px;font-family:var(--font);cursor:pointer;
+            transition:all 0.15s;color:var(--text2)
+        }
+        .sort-btn:hover{border-color:rgba(0,0,0,0.15)}
+        .sort-btn.active{background:rgba(2,132,199,0.08);border-color:rgba(2,132,199,0.3);color:var(--accent);font-weight:600}
+        .ranking-table-wrap{
+            background:#fff;border:1px solid rgba(0,0,0,0.06);border-radius:var(--radius);
+            overflow:auto;box-shadow:0 1px 3px rgba(0,0,0,0.04);max-height:calc(100vh - 260px)
+        }
+        .ranking-table{width:100%;border-collapse:collapse;font-size:12px;font-family:var(--mono)}
+        .ranking-table thead{position:sticky;top:0;z-index:2}
+        .ranking-table th{
+            background:#f8fafc;border-bottom:2px solid rgba(0,0,0,0.08);
+            padding:8px 10px;text-align:right;font-weight:600;font-size:11px;
+            color:var(--text2);cursor:pointer;white-space:nowrap;user-select:none
+        }
+        .ranking-table th:first-child,.ranking-table th:nth-child(2),.ranking-table th:nth-child(3){text-align:left}
+        .ranking-table th:hover{background:#f1f5f9}
+        .ranking-table th .arrow{font-size:9px;margin-left:2px;opacity:0.4}
+        .ranking-table th.sorted .arrow{opacity:1;color:var(--accent)}
+        .ranking-table td{
+            padding:7px 10px;text-align:right;border-bottom:1px solid rgba(0,0,0,0.04);
+            white-space:nowrap
+        }
+        .ranking-table td:first-child{text-align:center;color:var(--text3);font-size:11px}
+        .ranking-table td:nth-child(2){text-align:left;font-weight:600;cursor:pointer;color:var(--accent)}
+        .ranking-table td:nth-child(2):hover{text-decoration:underline}
+        .ranking-table td:nth-child(3){text-align:left;color:var(--text2)}
+        .ranking-table tr:hover{background:rgba(2,132,199,0.03)}
+        .ranking-table tr:nth-child(1) td:first-child{color:#f59e0b;font-weight:700}
+        .ranking-table tr:nth-child(2) td:first-child{color:#94a3b8;font-weight:600}
+        .ranking-table tr:nth-child(3) td:first-child{color:#b45309;font-weight:600}
+
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-line"></div>
+        <div class="header-inner">
+            <div class="header-logo">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </div>
+            <div class="header-title">个股实时资金流向</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 顶栏 -->
+        <div class="toolbar">
+            <input id="codeInput" class="input-sm" type="text" placeholder="输入股票代码" value="">
+            <button class="btn btn-primary" onclick="addStock()">添加</button>
+            <button class="btn btn-ghost" id="btnRanking" onclick="toggleRanking()">全市场</button>
+            <span class="spacer"></span>
+            <select id="dateSelect" class="input-sm" onchange="onDateChange()">
+                <option value="">当天</option>
+            </select>
+        </div>
+
+        <!-- 状态 -->
+        <div id="statusBar" class="status-bar">
+            <span class="status-dot off" id="statusDot"></span>
+            <span id="statusText">等待加载...</span>
+        </div>
+
+        <!-- 标签 -->
+        <div id="stockTabs" class="stock-tabs"></div>
+
+        <!-- 创建指数 -->
+        <div id="groupPanel" class="group-panel">
+            <span class="label">创建指数</span>
+            <input id="groupName" class="input-sm" type="text" placeholder="名称" style="width:120px">
+            <input id="groupCodes" class="input-sm" type="text" placeholder="代码，逗号分隔" style="width:200px">
+            <button class="btn btn-ghost" onclick="createGroup()">+ 创建</button>
+        </div>
+
+        <div id="loading" class="loading"><span class="spinner"></span>加载中...</div>
+        <div id="emptyState" class="empty">
+            <div class="icon">📈</div>
+            <div>添加股票，查看实时资金流向</div>
+        </div>
+
+        <div id="summaryArea" class="summary" style="display:none"></div>
+
+        <div id="chartArea" style="display:none">
+            <div id="groupMembers" class="members-bar" style="display:none"></div>
+            <div class="chart-area">
+                <h3><span class="dot"></span><span id="chartTitle1">股价涨跌幅 & 主力净流入</span></h3>
+                <div id="chartPrice" class="chart-box"></div>
+            </div>
+            <div class="chart-area">
+                <h3><span class="dot" style="background:#a78bfa"></span><span id="chartTitle2">资金流明细</span></h3>
+                <div id="chartFlow" class="chart-box"></div>
+            </div>
+        </div>
+
+        <!-- 全市场排名 -->
+        <div id="rankingView" class="ranking-view">
+            <div class="ranking-header">
+                <span class="title">全市场资金流排名</span>
+                <span class="dt" id="rankingDt"></span>
+                <span class="dt" id="rankingTotal"></span>
+                <span class="spacer"></span>
+                <div class="sort-btns" id="sortBtns"></div>
+            </div>
+            <div class="ranking-table-wrap">
+                <table class="ranking-table" id="rankingTable">
+                    <thead id="rankingHead"></thead>
+                    <tbody id="rankingBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+<script>
+var $ = function(id) { return document.getElementById(id); };
+var stocks = {};
+var activeCode = null;
+var chartPrice = null;
+var chartFlow = null;
+var refreshTimer = null;
+var currentDate = '';
+
+function fmt(val) {
+    var abs = Math.abs(val);
+    if (abs >= 1e8) return (val / 1e8).toFixed(2) + '亿';
+    if (abs >= 1e4) return (val / 1e4).toFixed(0) + '万';
+    return val.toLocaleString();
+}
+
+function fmtPct(val) {
+    return val.toFixed(4) + '%';
+}
+
+function cls(val) { return val >= 0 ? 'val-pos' : 'val-neg'; }
+
+function setStatus(text, active) {
+    $('statusText').textContent = text;
+    $('statusDot').className = 'status-dot' + (active ? '' : ' off');
+}
+
+// ── 日期选择 ──────────────────────────────────────
+
+function onDateChange() {
+    currentDate = $('dateSelect').value;
+    if (activeCode) refreshActive();
+}
+
+async function loadDates(code) {
+    try {
+        var resp = await fetch('/api/dates?code=' + encodeURIComponent(code));
+        var dates = await resp.json();
+        var sel = $('dateSelect');
+        sel.innerHTML = '<option value="">当天</option>';
+        if (dates.length > 1) {
+            dates.forEach(function(d) {
+                var opt = document.createElement('option');
+                opt.value = d;
+                opt.textContent = d;
+                if (d === currentDate) opt.selected = true;
+                sel.appendChild(opt);
+            });
+            var optAll = document.createElement('option');
+            optAll.value = 'all';
+            optAll.textContent = '全部';
+            if (currentDate === 'all') optAll.selected = true;
+            sel.appendChild(optAll);
+        }
+    } catch(e) {}
+}
+
+// ── 添加股票 ──────────────────────────────────────
+
+function addStock() {
+    var code = $('codeInput').value.trim();
+    if (!code) return;
+    if (stocks[code]) { switchStock(code); return; }
+    $('codeInput').value = '';
+    fetchStock(code);
+}
+
+async function fetchStock(code) {
+    $('loading').style.display = 'block';
+    try {
+        var postResp = await fetch('/api/stocks', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({code: code})
+        });
+        var postData = await postResp.json();
+        if (!postResp.ok || postData.error) { alert(postData.error || '添加失败'); return; }
+
+        var url = '/api/intraday?code=' + encodeURIComponent(postData.code);
+        if (currentDate === 'all') url += '&date=';
+        else if (currentDate) url += '&date=' + encodeURIComponent(currentDate);
+        var resp = await fetch(url);
+        var data = await resp.json();
+        if (!resp.ok || data.error) { alert(data.error || '获取失败'); return; }
+        stocks[data.code] = data;
+        renderTabs();
+        switchStock(data.code);
+        setStatus('已添加 ' + data.name, true);
+        loadDates(data.code);
+    } catch(e) {
+        alert('网络错误: ' + e.message);
+    } finally {
+        $('loading').style.display = 'none';
+    }
+}
+
+function removeStock(code, e) {
+    e.stopPropagation();
+    fetch('/api/stocks/' + code, {method: 'DELETE'});
+    delete stocks[code];
+    if (activeCode === code) {
+        var keys = Object.keys(stocks);
+        activeCode = keys.length > 0 ? keys[0] : null;
+    }
+    renderTabs();
+    if (activeCode) { switchStock(activeCode); } else { hideAll(); }
+}
+
+function renameStock(code, newName) {
+    stocks[code].name = newName;
+    fetch('/api/stocks/' + code + '/name', {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name: newName})
+    });
+    renderTabs();
+    if (activeCode === code) renderChart(code);
+}
+
+// ── 标签渲染 ──────────────────────────────────────
+
+function renderTabs() {
+    var container = $('stockTabs');
+    while (container.firstChild) container.removeChild(container.firstChild);
+
+    // 个股
+    Object.keys(stocks).forEach(function(code) {
+        var s = stocks[code];
+        if (s.is_group) return;
+        var tab = document.createElement('div');
+        tab.className = 'stock-tab' + (code === activeCode ? ' active' : '');
+        tab.onclick = function() { switchStock(code); };
+
+        var editBtn = document.createElement('span');
+        editBtn.className = 'close';
+        editBtn.textContent = '✎';
+        editBtn.title = '改名';
+        var nameSpan = document.createElement('span');
+        nameSpan.className = 'name';
+        nameSpan.textContent = s.name;
+        editBtn.onclick = function(e) {
+            e.stopPropagation();
+            var input = document.createElement('input');
+            input.type = 'text';
+            input.value = s.name;
+            input.style.cssText = 'width:80px;background:#fff;border:1px solid rgba(2,132,199,0.3);border-radius:4px;padding:2px 6px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;box-shadow:0 0 0 2px rgba(2,132,199,0.1)';
+            nameSpan.replaceWith(input);
+            input.focus();
+            input.select();
+            var done = function() {
+                renameStock(code, input.value.trim() || s.name);
+            };
+            input.onblur = done;
+            input.onkeydown = function(ev) { if (ev.key === 'Enter') input.blur(); if (ev.key === 'Escape') { input.value = s.name; input.blur(); } };
+        };
+        tab.appendChild(editBtn);
+        tab.appendChild(nameSpan);
+
+        var codeSpan = document.createElement('span');
+        codeSpan.className = 'code';
+        codeSpan.textContent = s.code;
+        tab.appendChild(codeSpan);
+
+        var close = document.createElement('span');
+        close.className = 'close';
+        close.textContent = '×';
+        close.onclick = function(e) { removeStock(code, e); };
+        tab.appendChild(close);
+        container.appendChild(tab);
+    });
+
+    // 指数
+    var groups = window._groups || [];
+    groups.forEach(function(g) {
+        var key = 'group_' + g.id;
+        var tag = document.createElement('div');
+        tag.className = 'stock-tab group-tab' + (key === activeCode ? ' active' : '');
+        tag.title = (g.code_names ? g.codes.map(function(c){return (g.code_names[c]||c)+'('+c+')'}).join('\n') : g.codes.join(', '));
+        tag.onclick = function() { loadGroupFlow(g.id, g.name); };
+
+        var gn = document.createElement('span');
+        gn.className = 'name';
+        gn.textContent = g.name;
+        tag.appendChild(gn);
+
+        var gc = document.createElement('span');
+        gc.className = 'code';
+        gc.textContent = g.codes.length + '只';
+        tag.appendChild(gc);
+
+        var close = document.createElement('span');
+        close.className = 'close';
+        close.textContent = '×';
+        close.onclick = function(e) {
+            e.stopPropagation();
+            if (confirm('删除指数 "' + g.name + '"？')) {
+                fetch('/api/groups/' + g.id, {method: 'DELETE'}).then(loadGroups);
+                delete stocks[key];
+                if (activeCode === key) {
+                    var keys = Object.keys(stocks);
+                    activeCode = keys.length > 0 ? keys[0] : null;
+                    renderTabs();
+                    if (activeCode) switchStock(activeCode); else hideAll();
+                }
+            }
+        };
+        tag.appendChild(close);
+        container.appendChild(tag);
+    });
+}
+
+function hideAll() {
+    $('emptyState').style.display = 'block';
+    $('chartArea').style.display = 'none';
+    $('summaryArea').style.display = 'none';
+    if (chartPrice) { chartPrice.dispose(); chartPrice = null; }
+    if (chartFlow) { chartFlow.dispose(); chartFlow = null; }
+}
+
+function switchStock(code) {
+    activeCode = code;
+    renderTabs();
+    renderChart(code);
+    renderSummary(code);
+    if (stocks[code].is_group) {
+        var sel = $('dateSelect');
+        sel.innerHTML = '<option value="">当天</option><option value="all">全部</option>';
+        currentDate = '';
+    } else {
+        loadDates(code);
+    }
+}
+
+// ── 汇总卡片 ──────────────────────────────────────
+
+function renderSummary(code) {
+    var s = stocks[code];
+    if (!s || !s.main_net || s.main_net.length === 0) return;
+    var last = s.main_net.length - 1;
+    var lastPrice = 0;
+    if (s.prices) { for (var pi = s.prices.length - 1; pi >= 0; pi--) { if (s.prices[pi] != null && s.prices[pi] > 0) { lastPrice = s.prices[pi]; break; } } }
+    var isGroup = s.is_group;
+    var items = [
+        {label: isGroup ? '等权涨跌幅' : '最新价', value: lastPrice, isPrice: true, isGroup: isGroup},
+        {label:'主力净流入', value:s.main_net[last]},
+        {label:'超大单', value:s.super_large_net[last]},
+        {label:'大单', value:s.large_net[last]},
+        {label:'中单', value:s.medium_net[last]},
+        {label:'小单', value:s.small_net[last]},
+    ];
+    var area = $('summaryArea');
+    while (area.firstChild) area.removeChild(area.firstChild);
+    items.forEach(function(item) {
+        var card = document.createElement('div');
+        card.className = 'summary-card';
+        var label = document.createElement('div');
+        label.className = 'label';
+        label.textContent = item.label;
+        var value = document.createElement('div');
+        if (item.isPrice) {
+            value.className = 'value';
+            if (item.isGroup) {
+                value.textContent = item.value.toFixed(2) + '%';
+                value.className += (item.value >= 0 ? ' val-pos' : ' val-neg');
+            } else {
+                value.style.color = '#f59e0b';
+                value.textContent = item.value > 0 ? item.value.toFixed(2) : '--';
+            }
+        } else {
+            value.className = 'value ' + cls(item.value);
+            value.textContent = isGroup ? fmtPct(item.value) : fmt(item.value);
+        }
+        card.appendChild(label);
+        card.appendChild(value);
+        area.appendChild(card);
+    });
+    $('summaryArea').style.display = 'grid';
+}
+
+// ── 图表 ──────────────────────────────────────────
+
+function renderChart(code) {
+    var s = stocks[code];
+    if (!s) return;
+    var isGroup = s.is_group;
+    $('chartTitle1').textContent = s.name + (isGroup ? ' 等权涨跌幅 & 主力净流入' : ' 涨跌幅 & 主力净流入');
+    $('chartTitle2').textContent = s.name + ' 资金流明细';
+    $('emptyState').style.display = 'none';
+
+    var gm = $('groupMembers');
+    if (isGroup) {
+        var groups = window._groups || [];
+        var g = groups.find(function(x) { return 'group_' + x.id === code; });
+        if (g) {
+            var names = g.code_names || {};
+            var parts = g.codes.map(function(c) { return (names[c] || c) + '(' + c + ')'; });
+            gm.textContent = '成分股: ' + parts.join('  ');
+            gm.style.display = 'block';
+        }
+    } else {
+        gm.style.display = 'none';
+    }
+    $('chartArea').style.display = 'block';
+
+    if (chartPrice) { chartPrice.dispose(); }
+    if (chartFlow) { chartFlow.dispose(); }
+    chartPrice = echarts.init($('chartPrice'));
+    chartFlow = echarts.init($('chartFlow'));
+
+    var pricePct = [];
+    if (isGroup) {
+        pricePct = s.prices || [];
+    } else if (s.prices && s.prices.length > 0) {
+        // 找第一个有效价格作为基准
+        var openPrice = null;
+        for (var pi = 0; pi < s.prices.length; pi++) {
+            if (s.prices[pi] != null && s.prices[pi] > 0) { openPrice = s.prices[pi]; break; }
+        }
+        if (openPrice) {
+            pricePct = s.prices.map(function(p) { return (p != null && p > 0) ? ((p - openPrice) / openPrice * 100) : null; });
+        }
+    }
+
+    echarts.connect([chartPrice, chartFlow]);
+
+    var labelInterval = s.times.length > 200 ? 59 : 29;
+    var isMultiDay = s.times.length > 0 && s.times[0].indexOf(' ') !== -1;
+    var baseX = {
+        type: 'category', data: s.times, boundaryGap: false,
+        axisLabel: {
+            color:'#64748b', fontSize:10, interval:labelInterval,
+            formatter: function(val, idx) {
+                if (isMultiDay) {
+                    if (idx === s.times.length - 1) return val;
+                    return val.split(' ')[0];
+                }
+                return val;
+            }
+        },
+        axisLine: {lineStyle:{color:'rgba(0,0,0,0.08)'}}
+    };
+
+    chartPrice.setOption({
+        tooltip: {
+            trigger: 'axis',
+            backgroundColor: 'rgba(255,255,255,0.96)',
+            borderColor: 'rgba(0,0,0,0.08)',
+            textStyle: {color:'#1a1a2e', fontSize:12},
+            extraCssText: 'box-shadow:0 4px 12px rgba(0,0,0,0.1);',
+            formatter: function(params) {
+                var t = params[0].axisValue + '<br/>';
+                params.forEach(function(p) {
+                    var val;
+                    if (p.seriesName === '涨跌幅' || p.seriesName === '等权涨跌幅') {
+                        val = p.value.toFixed(2) + '%';
+                    } else if (isGroup) {
+                        val = fmtPct(p.value);
+                    } else {
+                        val = fmt(p.value);
+                    }
+                    t += p.marker + ' ' + p.seriesName + ': <b>' + val + '</b><br/>';
+                });
+                return t;
+            }
+        },
+        legend: {
+            data: [isGroup ? '等权涨跌幅' : '涨跌幅', '主力净流入'],
+            textStyle: {color:'#64748b', fontSize:11},
+            top: 0, right: 0
+        },
+        grid: {left:70, right:70, top:36, bottom:30},
+        xAxis: baseX,
+        yAxis: [
+            {
+                type: 'value', name: isGroup ? '主力净流入(占市值%)' : '主力净流入',
+                nameTextStyle: {color:'#64748b', fontSize:10},
+                axisLabel: {color:'#64748b', fontSize:10, formatter:function(v){return isGroup ? v.toFixed(4)+'%' : fmt(v)}},
+                splitLine: {lineStyle:{color:'rgba(0,0,0,0.06)'}}
+            },
+            {
+                type: 'value', name: '涨跌幅',
+                nameTextStyle: {color:'#64748b', fontSize:10},
+                axisLabel: {color:'#64748b', fontSize:10, formatter:function(v){return v.toFixed(1)+'%'}},
+                splitLine: {show:false}
+            }
+        ],
+        series: [
+            {
+                name: isGroup ? '等权涨跌幅' : '涨跌幅', type: 'line', data: pricePct,
+                yAxisIndex: 1,
+                lineStyle: {width:2, color:'#f59e0b'}, symbol:'none',
+                itemStyle: {color:'#f59e0b'},
+                areaStyle: {color: new echarts.graphic.LinearGradient(0,0,0,1,[
+                    {offset:0,color:'rgba(245,158,11,0.2)'},
+                    {offset:1,color:'rgba(245,158,11,0)'}
+                ])}
+            },
+            {
+                name: '主力净流入', type: 'line', data: s.main_net,
+                yAxisIndex: 0,
+                lineStyle: {width:2, color:'#0284c7'}, symbol:'none',
+                itemStyle: {color:'#0284c7'},
+                areaStyle: {color: new echarts.graphic.LinearGradient(0,0,0,1,[
+                    {offset:0,color:'rgba(2,132,199,0.18)'},
+                    {offset:1,color:'rgba(2,132,199,0)'}
+                ])}
+            }
+        ]
+    });
+
+    chartFlow.setOption({
+        tooltip: {
+            trigger: 'axis',
+            backgroundColor: 'rgba(255,255,255,0.96)',
+            borderColor: 'rgba(0,0,0,0.08)',
+            textStyle: {color:'#1a1a2e', fontSize:12},
+            extraCssText: 'box-shadow:0 4px 12px rgba(0,0,0,0.1);',
+            formatter: function(params) {
+                var t = params[0].axisValue + '<br/>';
+                params.forEach(function(p) {
+                    var val = isGroup ? fmtPct(p.value) : fmt(p.value);
+                    t += p.marker + ' ' + p.seriesName + ': <b>' + val + '</b><br/>';
+                });
+                return t;
+            }
+        },
+        legend: {
+            data: ['超大单','大单','中单','小单'],
+            textStyle: {color:'#64748b', fontSize:11},
+            top: 0, right: 0
+        },
+        grid: {left:70, right:70, top:36, bottom:30},
+        xAxis: baseX,
+        yAxis: {
+            type: 'value',
+            name: isGroup ? '占市值%' : '',
+            nameTextStyle: {color:'#64748b', fontSize:10},
+            axisLabel: {color:'#64748b', fontSize:10, formatter:function(v){return isGroup ? v.toFixed(4)+'%' : fmt(v)}},
+            splitLine: {lineStyle:{color:'rgba(0,0,0,0.06)'}}
+        },
+        series: [
+            {name:'超大单', type:'line', data:s.super_large_net, lineStyle:{width:1.5,color:'#ef4444'}, symbol:'none', itemStyle:{color:'#ef4444'}},
+            {name:'大单', type:'line', data:s.large_net, lineStyle:{width:1.5,color:'#3b82f6'}, symbol:'none', itemStyle:{color:'#3b82f6'}},
+            {name:'中单', type:'line', data:s.medium_net, lineStyle:{width:1,color:'#a78bfa'}, symbol:'none', itemStyle:{color:'#a78bfa'}},
+            {name:'小单', type:'line', data:s.small_net, lineStyle:{width:1,color:'#6ee7b7'}, symbol:'none', itemStyle:{color:'#6ee7b7'}}
+        ]
+    });
+
+    window.addEventListener('resize', function() {
+        chartPrice && chartPrice.resize();
+        chartFlow && chartFlow.resize();
+    });
+}
+
+// ── 自定义指数 ────────────────────────────────────
+
+async function createGroup() {
+    var name = $('groupName').value.trim();
+    var codesStr = $('groupCodes').value.trim();
+    if (!name || !codesStr) { alert('请输入名称和股票代码'); return; }
+    var codes = codesStr.split(/[,，\s]+/).filter(function(c) { return c.trim(); });
+    if (codes.length === 0) { alert('至少一只股票'); return; }
+    try {
+        var resp = await fetch('/api/groups', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name: name, codes: codes})
+        });
+        var data = await resp.json();
+        if (!resp.ok || data.error) { alert(data.error || '创建失败'); return; }
+        $('groupName').value = '';
+        $('groupCodes').value = '';
+        loadGroups();
+    } catch(e) { alert('网络错误: ' + e.message); }
+}
+
+async function loadGroups() {
+    try {
+        var resp = await fetch('/api/groups');
+        var groups = await resp.json();
+        window._groups = groups;
+        renderTabs();
+    } catch(e) {}
+}
+
+async function loadGroupFlow(gid, name) {
+    var key = 'group_' + gid;
+    try {
+        var url = '/api/groups/' + gid + '/flow';
+        if (currentDate === 'all') url += '?date=';
+        else if (currentDate) url += '?date=' + encodeURIComponent(currentDate);
+        var resp = await fetch(url);
+        var data = await resp.json();
+        if (!resp.ok || data.error) { alert(data.error || '获取失败'); return; }
+        stocks[key] = data;
+        renderTabs();
+        switchStock(key);
+    } catch(e) { alert('网络错误: ' + e.message); }
+}
+
+function removeGroup(code, e) {
+    e.stopPropagation();
+    var gid = parseInt(code.replace('group_', ''));
+    fetch('/api/groups/' + gid, {method: 'DELETE'});
+    delete stocks[code];
+    if (activeCode === code) {
+        var keys = Object.keys(stocks);
+        activeCode = keys.length > 0 ? keys[0] : null;
+    }
+    renderTabs();
+    loadGroups();
+    if (activeCode) { switchStock(activeCode); } else { hideAll(); }
+}
+
+// ── 全市场排名 ────────────────────────────────────
+
+var rankingVisible = false;
+var rankingSort = 'main_net';
+var rankingOrder = 'desc';
+var rankingData = null;
+
+var RANKING_SORTS = [
+    {key:'main_net', label:'主力净流入'},
+    {key:'super_large_net', label:'超大单'},
+    {key:'large_net', label:'大单'},
+    {key:'medium_net', label:'中单'},
+    {key:'small_net', label:'小单'},
+    {key:'change_pct', label:'涨跌幅'},
+    {key:'main_ratio', label:'主力占比'},
+];
+
+var RANKING_COLS = [
+    {key:'rank', label:'#', fmt:function(v){return v}},
+    {key:'code', label:'代码', fmt:function(v){return v}},
+    {key:'name', label:'名称', fmt:function(v){return v}},
+    {key:'price', label:'价格', fmt:function(v){return v != null ? v.toFixed(2) : '--'}},
+    {key:'change_pct', label:'涨跌幅', fmt:function(v){return v != null ? v.toFixed(2)+'%' : '--'}, cls:true},
+    {key:'main_net', label:'主力净流入', fmt:function(v){return v != null ? fmt(v) : '--'}, cls:true},
+    {key:'super_large_net', label:'超大单', fmt:function(v){return v != null ? fmt(v) : '--'}, cls:true},
+    {key:'large_net', label:'大单', fmt:function(v){return v != null ? fmt(v) : '--'}, cls:true},
+    {key:'medium_net', label:'中单', fmt:function(v){return v != null ? fmt(v) : '--'}, cls:true},
+    {key:'small_net', label:'小单', fmt:function(v){return v != null ? fmt(v) : '--'}, cls:true},
+    {key:'main_ratio', label:'主力占比', fmt:function(v){return v != null ? v.toFixed(2)+'%' : '--'}, cls:true},
+];
+
+function toggleRanking() {
+    if (rankingVisible) {
+        hideRanking();
+    } else {
+        showRanking();
+    }
+}
+
+function showRanking() {
+    rankingVisible = true;
+    $('btnRanking').textContent = '返回';
+    $('rankingView').style.display = 'block';
+    $('chartArea').style.display = 'none';
+    $('summaryArea').style.display = 'none';
+    $('emptyState').style.display = 'none';
+    $('dateSelect').style.display = 'none';
+    $('stockTabs').style.display = 'none';
+    $('groupPanel').style.display = 'none';
+    renderSortBtns();
+    loadRanking();
+}
+
+function hideRanking() {
+    rankingVisible = false;
+    $('btnRanking').textContent = '全市场';
+    $('rankingView').style.display = 'none';
+    $('dateSelect').style.display = '';
+    $('stockTabs').style.display = '';
+    $('groupPanel').style.display = '';
+    if (activeCode) {
+        switchStock(activeCode);
+    } else {
+        hideAll();
+    }
+}
+
+function renderSortBtns() {
+    var container = $('sortBtns');
+    while (container.firstChild) container.removeChild(container.firstChild);
+    RANKING_SORTS.forEach(function(s) {
+        var btn = document.createElement('button');
+        btn.className = 'sort-btn' + (s.key === rankingSort ? ' active' : '');
+        btn.textContent = s.label;
+        btn.onclick = function() {
+            if (rankingSort === s.key) {
+                rankingOrder = rankingOrder === 'desc' ? 'asc' : 'desc';
+            } else {
+                rankingSort = s.key;
+                rankingOrder = 'desc';
+            }
+            renderSortBtns();
+            renderRankingHead();
+            renderRankingBody();
+        };
+        container.appendChild(btn);
+    });
+}
+
+function renderRankingHead() {
+    var thead = $('rankingHead');
+    thead.innerHTML = '';
+    var tr = document.createElement('tr');
+    RANKING_COLS.forEach(function(col) {
+        var th = document.createElement('th');
+        var isSorted = col.key === rankingSort;
+        if (isSorted) th.className = 'sorted';
+        var arrow = '';
+        if (isSorted) arrow = rankingOrder === 'desc' ? ' ▼' : ' ▲';
+        th.innerHTML = col.label + '<span class="arrow">' + arrow + '</span>';
+        if (col.key !== 'rank' && col.key !== 'code' && col.key !== 'name') {
+            th.onclick = function() {
+                if (rankingSort === col.key) {
+                    rankingOrder = rankingOrder === 'desc' ? 'asc' : 'desc';
+                } else {
+                    rankingSort = col.key;
+                    rankingOrder = 'desc';
+                }
+                renderSortBtns();
+                renderRankingHead();
+                renderRankingBody();
+            };
+        }
+        tr.appendChild(th);
+    });
+    thead.appendChild(tr);
+}
+
+function renderRankingBody() {
+    var tbody = $('rankingBody');
+    tbody.innerHTML = '';
+    if (!rankingData || !rankingData.rows) return;
+    rankingData.rows.forEach(function(row, idx) {
+        var tr = document.createElement('tr');
+        RANKING_COLS.forEach(function(col) {
+            var td = document.createElement('td');
+            var val = col.key === 'rank' ? (idx + 1) : row[col.key];
+            td.textContent = col.fmt(val);
+            if (col.cls && val != null) {
+                td.className = cls(typeof val === 'string' ? parseFloat(val) : val);
+            }
+            if (col.key === 'code') {
+                td.onclick = function() {
+                    // 跳转到该股票
+                    var code = row.code;
+                    if (stocks[code]) {
+                        hideRanking();
+                        switchStock(code);
+                    } else {
+                        hideRanking();
+                        $('codeInput').value = code;
+                        addStock();
+                    }
+                };
+            }
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    });
+}
+
+async function loadRanking() {
+    try {
+        var url = '/api/market_flow?sort=' + encodeURIComponent(rankingSort)
+            + '&order=' + encodeURIComponent(rankingOrder)
+            + '&limit=200';
+        var resp = await fetch(url);
+        var data = await resp.json();
+        if (!resp.ok || data.error) {
+            $('rankingDt').textContent = data.error || '加载失败';
+            $('rankingTotal').textContent = '';
+            return;
+        }
+        rankingData = data;
+        $('rankingDt').textContent = data.dt ? '快照: ' + data.dt : '暂无数据';
+        $('rankingTotal').textContent = data.total ? '共 ' + data.total + ' 只' : '';
+        renderRankingHead();
+        renderRankingBody();
+    } catch(e) {
+        $('rankingDt').textContent = '网络错误';
+        $('rankingTotal').textContent = '';
+    }
+}
+
+// ── 自动刷新 ──────────────────────────────────────
+
+async function refreshActive() {
+    if (rankingVisible) {
+        await loadRanking();
+        setStatus('排名已刷新: ' + new Date().toLocaleTimeString(), true);
+        return;
+    }
+    if (!activeCode) return;
+    try {
+        var data;
+        if (activeCode.startsWith('group_')) {
+            var gid = activeCode.replace('group_', '');
+            var url = '/api/groups/' + gid + '/flow';
+            if (currentDate === 'all') url += '?date=';
+            else if (currentDate) url += '?date=' + encodeURIComponent(currentDate);
+            var resp = await fetch(url);
+            data = await resp.json();
+            if (!resp.ok || data.error) return;
+        } else {
+            var url2 = '/api/intraday?code=' + encodeURIComponent(activeCode);
+            if (currentDate === 'all') url2 += '&date=';
+            else if (currentDate) url2 += '&date=' + encodeURIComponent(currentDate);
+            var resp2 = await fetch(url2);
+            data = await resp2.json();
+            if (!resp2.ok || data.error) return;
+        }
+        stocks[data.code] = data;
+        renderChart(data.code);
+        renderSummary(data.code);
+        setStatus('最后更新: ' + new Date().toLocaleTimeString(), true);
+    } catch(e) {
+        setStatus('刷新失败: ' + e.message, false);
+    }
+}
+
+function startAutoRefresh() {
+    if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = setInterval(refreshActive, 60000);
+}
+
+// ── 快捷键 ────────────────────────────────────────
+
+$('codeInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') addStock(); });
+$('groupCodes').addEventListener('keydown', function(e) { if (e.key === 'Enter') createGroup(); });
+
+// ── 页面加载 ──────────────────────────────────────
+
+(async function() {
+    try {
+        var resp = await fetch('/api/stocks');
+        var list = await resp.json();
+        if (list.length === 0) {
+            $('codeInput').value = '600519';
+            addStock();
+        } else {
+            setStatus('加载 ' + list.length + ' 只股票...', true);
+            for (var i = 0; i < list.length; i++) {
+                try {
+                    var dResp = await fetch('/api/intraday?code=' + encodeURIComponent(list[i].code));
+                    var d = await dResp.json();
+                    if (dResp.ok && !d.error) stocks[d.code] = d;
+                } catch(e) {}
+            }
+            renderTabs();
+            var codes = Object.keys(stocks);
+            if (codes.length > 0) switchStock(codes[0]);
+            setStatus('已加载 ' + codes.length + ' 只股票', true);
+        }
+    } catch(e) {
+        setStatus('加载失败: ' + e.message, false);
+    }
+    loadGroups();
+    startAutoRefresh();
+})();
+</script>
+</body>
+</html>
