@@ -360,6 +360,15 @@ def get_group_flow(group_id: int, date: str | None = None) -> dict | None:
     if not all_data:
         return None
 
+    # 如果股票有资金流数据但缺少流通市值，实时拉取
+    from stock_flow.yahoo import fetch_market_cap
+    missing_mc = [code for code in codes if code not in market_caps and get_flow(code)]
+    for code in missing_mc:
+        mc = fetch_market_cap(code)
+        if mc:
+            update_market_cap(code, mc)
+            market_caps[code] = mc
+
     # 用时间点并集
     all_times: set[str] = set()
     for d in all_data:
