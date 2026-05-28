@@ -116,27 +116,22 @@ def fetch_market_cap(ticker: str) -> float | None:
 def _fetch_market_cap_eastmoney(ticker: str) -> float | None:
     """从东方财富 API 获取流通市值（单位：元）"""
     import json
-    import subprocess
+    import time
+
+    import requests
 
     code = ticker.zfill(6)
     secid = f"1.{code}" if code.startswith(("6", "9")) else f"0.{code}"
     url = (
         f"https://push2delay.eastmoney.com/api/qt/stock/get"
-        f"?secid={secid}&fields=f117&cb=jQuery123_123456&_={int(__import__('time').time()*1000)}"
+        f"?secid={secid}&fields=f117"
     )
     try:
-        result = subprocess.run(
-            ["curl", "-s", "--max-time", "10",
-             "-H", "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-             "-H", "Referer: https://quote.eastmoney.com/",
-             url],
-            capture_output=True, text=True, timeout=15,
-        )
-        text = result.stdout.strip()
-        if "502" in text or not text:
-            return None
-        json_str = text[text.index("(") + 1 : text.rindex(")")]
-        data = json.loads(json_str)
+        resp = requests.get(url, timeout=10, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Referer": "https://quote.eastmoney.com/",
+        })
+        data = resp.json()
         mc = data.get("data", {}).get("f117")
         if mc and mc > 0:
             return float(mc)
