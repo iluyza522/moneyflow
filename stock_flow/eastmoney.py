@@ -8,10 +8,8 @@
 
 import json
 import random
-import subprocess
 import time
 from datetime import date, datetime
-from urllib.parse import urlencode
 
 import requests
 
@@ -87,24 +85,6 @@ def _do_request_url(url: str, params: dict) -> dict:
     return _strip_jsonp(resp.text)
 
 
-def _do_request_curl(url: str, params: dict) -> dict:
-    """使用 curl 发送请求（降级方案）"""
-    full_url = url + "?" + urlencode(params)
-    cmd = [
-        "curl", "-s", "--max-time", "20",
-        "-H", f"User-Agent: {_HEADERS['User-Agent']}",
-        "-H", f"Referer: {_HEADERS['Referer']}",
-        full_url,
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=25)
-    if result.returncode != 0:
-        raise RuntimeError(f"curl 失败: exit={result.returncode}")
-    text = result.stdout.strip()
-    if "502 Bad Gateway" in text or not text:
-        raise RuntimeError("curl 返回 502 或空响应")
-    return _strip_jsonp(text)
-
-
 def _do_request(params: dict, max_retries: int = 3) -> dict:
     """发送请求，带重试和降级策略。
     降级顺序: requests+push2 → requests+push2delay → curl+push2delay
@@ -129,12 +109,6 @@ def _do_request(params: dict, max_retries: int = 3) -> dict:
             except Exception as e:
                 last_exc = e
                 continue
-
-        # requests 都失败时，用 curl 试备用接口
-        try:
-            return _do_request_curl(_KLINE_URL_BACKUP, params)
-        except Exception:
-            pass
 
     raise RuntimeError(f"请求失败（重试{max_retries}次）: {last_exc}")
 
@@ -334,12 +308,6 @@ def _do_market_flow_request(params: dict, max_retries: int = 3) -> dict:
                 return _do_request_url(url, params)
             except Exception as e:
                 last_exc = e
-
-        # requests 都失败时，用 curl 试备用接口
-        try:
-            return _do_request_curl(_MARKET_FLOW_URL_BACKUP, params)
-        except Exception:
-            pass
 
     raise RuntimeError(f"全市场资金流请求失败（重试{max_retries}次）: {last_exc}")
 
