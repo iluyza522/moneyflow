@@ -16,6 +16,9 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
 _ACCESS_TOKEN = os.environ.get("ACCESS_TOKEN", "123456")
 
+if _ACCESS_TOKEN == "123456" or app.secret_key == "dev-secret-key-change-in-production":
+    logging.warning("使用默认 ACCESS_TOKEN 或 SECRET_KEY，请通过环境变量设置")
+
 
 @app.before_request
 def check_auth():

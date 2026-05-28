@@ -10,8 +10,6 @@ COPY stock_flow/ stock_flow/
 COPY templates/ templates/
 COPY main.py web.py ./
 
-ENV ACCESS_TOKEN=123456 SECRET_KEY=change-me-in-production
-
 EXPOSE 5000
 
 CMD ["python", "web.py"]
