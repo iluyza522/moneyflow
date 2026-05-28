@@ -590,11 +590,20 @@ function switchStock(code){
 
 function renderSummary(code){
   var s=stocks[code];if(!s||!s.main_net||!s.main_net.length)return;
-  var last=s.main_net.length-1,lastPrice=0;
-  if(s.prices){for(var pi=s.prices.length-1;pi>=0;pi--){if(s.prices[pi]!=null&&s.prices[pi]>0){lastPrice=s.prices[pi];break}}}
+  var last=s.main_net.length-1;
   var ig=s.is_group;
+
+  // 算涨跌幅百分比
+  var changePct=0;
+  if(s.prices&&s.prices.length>1){
+    var firstP=null,lastP=null;
+    for(var pi=0;pi<s.prices.length;pi++){if(s.prices[pi]!=null&&s.prices[pi]>0){firstP=s.prices[pi];break}}
+    for(var pi=s.prices.length-1;pi>=0;pi--){if(s.prices[pi]!=null&&s.prices[pi]>0){lastP=s.prices[pi];break}}
+    if(firstP!=null&&lastP!=null)changePct=(lastP-firstP)/firstP*100;
+  }
+
   var items=[
-    {label:'涨跌幅',value:lastPrice,isPrice:true,isGroup:ig},
+    {label:'涨跌幅',value:changePct,isPct:true},
     {label:'主力净流入',value:s.main_net[last]},{label:'超大单',value:s.super_large_net[last]},
     {label:'大单',value:s.large_net[last]},{label:'中单',value:s.medium_net[last]},{label:'小单',value:s.small_net[last]}
   ];
@@ -604,10 +613,9 @@ function renderSummary(code){
     var c=document.createElement('div');c.className='summary-card';
     var l=document.createElement('div');l.className='label';l.textContent=item.label;
     var v=document.createElement('div');
-    if(item.isPrice){
-      v.className='value';
-      if(item.isGroup){v.textContent=item.value.toFixed(2)+'%';v.className+=item.value>=0?' val-pos':' val-neg'}
-      else{v.textContent=item.value>0?item.value.toFixed(2):'--';v.style.color='var(--gold)'}
+    if(item.isPct){
+      v.className='value'+((item.value>=0)?' val-pos':' val-neg');
+      v.textContent=item.value.toFixed(2)+'%';
     }else{v.className='value '+cls(item.value);v.textContent=ig?fmtPct(item.value):fmt(item.value)}
     c.appendChild(l);c.appendChild(v);a.appendChild(c);
   });
