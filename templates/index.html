@@ -230,7 +230,7 @@ select.input-line{
 }
 
 /* ── Summary ── */
-.summary{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px}
+.summary{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:16px}
 .summary-card{
   background:var(--surface);
   border:1px solid var(--border);
@@ -382,7 +382,7 @@ select.input-line{
 @media(max-width:900px){
   .charts-grid{grid-template-columns:1fr}
   .chart-card .chart-box{height:260px}
-  .summary{grid-template-columns:repeat(3,1fr)}
+  .summary{grid-template-columns:repeat(4,1fr)}
 }
 @media(max-width:640px){
   .header-inner{padding:0 16px;height:auto;flex-wrap:wrap;padding-top:10px;padding-bottom:10px;gap:8px}
@@ -602,7 +602,12 @@ function renderSummary(code){
     if(firstP!=null&&lastP!=null)changePct=(lastP-firstP)/firstP*100;
   }
 
+  // 最新价
+  var lastPrice=0;
+  if(s.prices){for(var pi=s.prices.length-1;pi>=0;pi--){if(s.prices[pi]!=null&&s.prices[pi]>0){lastPrice=s.prices[pi];break}}}
+
   var items=[
+    {label:'最新价',value:lastPrice,isPrice:true},
     {label:'涨跌幅',value:changePct,isPct:true},
     {label:'主力净流入',value:s.main_net[last]},{label:'超大单',value:s.super_large_net[last]},
     {label:'大单',value:s.large_net[last]},{label:'中单',value:s.medium_net[last]},{label:'小单',value:s.small_net[last]}
@@ -613,7 +618,9 @@ function renderSummary(code){
     var c=document.createElement('div');c.className='summary-card';
     var l=document.createElement('div');l.className='label';l.textContent=item.label;
     var v=document.createElement('div');
-    if(item.isPct){
+    if(item.isPrice){
+      v.className='value';v.textContent=item.value>0?item.value.toFixed(2):'--';v.style.color='var(--gold)';
+    }else if(item.isPct){
       v.className='value'+((item.value>=0)?' val-pos':' val-neg');
       v.textContent=item.value.toFixed(2)+'%';
     }else{v.className='value '+cls(item.value);v.textContent=ig?fmtPct(item.value):fmt(item.value)}
