@@ -777,7 +777,7 @@ function renderSortBtns(){
   var c=$('sortBtns');while(c.firstChild)c.removeChild(c.firstChild);
   RANKING_SORTS.forEach(function(s){
     var b=document.createElement('button');b.className='sort-btn'+(s.key===rankingSort?' active':'');b.textContent=s.label;
-    b.onclick=function(){if(rankingSort===s.key)rankingOrder=rankingOrder==='desc'?'asc':'desc';else{rankingSort=s.key;rankingOrder='desc'}renderSortBtns();renderRankingHead();renderRankingBody()};c.appendChild(b);
+    b.onclick=function(){if(rankingSort===s.key)rankingOrder=rankingOrder==='desc'?'asc':'desc';else{rankingSort=s.key;rankingOrder='desc'}renderSortBtns();loadRanking()};c.appendChild(b);
   });
 }
 function renderRankingHead(){
@@ -786,7 +786,7 @@ function renderRankingHead(){
     var th=document.createElement('th');var sorted=col.key===rankingSort;
     if(sorted)th.className='sorted';var arrow=sorted?((rankingOrder==='desc'?'▼':'▲')):'';
     th.innerHTML=col.label+'<span class="arrow">'+arrow+'</span>';
-    if(col.key!=='rank'&&col.key!=='code'&&col.key!=='name')th.onclick=function(){if(rankingSort===col.key)rankingOrder=rankingOrder==='desc'?'asc':'desc';else{rankingSort=col.key;rankingOrder='desc'}renderSortBtns();renderRankingHead();renderRankingBody()};
+    if(col.key!=='rank'&&col.key!=='code'&&col.key!=='name')th.onclick=function(){if(rankingSort===col.key)rankingOrder=rankingOrder==='desc'?'asc':'desc';else{rankingSort=col.key;rankingOrder='desc'}renderSortBtns();loadRanking()};
     tr.appendChild(th);
   });h.appendChild(tr);
 }
@@ -814,6 +814,14 @@ async function loadRanking(){
 }
 
 async function refreshActive(){
+  // 同步其他用户添加的股票
+  try{
+    var r=await fetch('/api/stocks'),list=await r.json();
+    if(r.ok&&list){var hasNew=false;
+      for(var i=0;i<list.length;i++){if(!stocks[list[i].code]){try{var dr=await fetch('/api/intraday?code='+encodeURIComponent(list[i].code));var d=await dr.json();if(dr.ok&&!d.error){stocks[d.code]=d;hasNew=true}}catch(e){}}
+      }if(hasNew){renderTabs();if(!activeCode||!stocks[activeCode]){var ks=Object.keys(stocks);if(ks.length>0)switchStock(ks[0])}}
+    }
+  }catch(e){}
   if(rankingVisible){await loadRanking();setStatus('排名已刷新: '+new Date().toLocaleTimeString(),true);return}
   if(!activeCode)return;
   try{
