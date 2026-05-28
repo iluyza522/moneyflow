@@ -10,7 +10,7 @@ _DB_PATH = Path(__file__).parent.parent / "data.db"
 def _conn() -> sqlite3.Connection:
     conn = sqlite3.connect(str(_DB_PATH))
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA journal_mode=DELETE")
     return conn
 
 
