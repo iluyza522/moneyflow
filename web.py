@@ -1,9 +1,9 @@
 """Web 前端 — 个股实时资金流向可视化（SQLite + 后台刷新）"""
 
 import logging
+import os
 from datetime import datetime
-
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, session, redirect, url_for
 
 from stock_flow import db
 from stock_flow.eastmoney import fetch_intraday_flow
@@ -13,6 +13,35 @@ from stock_flow.yahoo import fetch_market_cap
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
+_ACCESS_TOKEN = os.environ.get("ACCESS_TOKEN", "123456")
+
+
+@app.before_request
+def check_auth():
+    if request.endpoint in ("login", "static") or request.path.startswith("/login"):
+        return None
+    if not session.get("authed"):
+        if request.path.startswith("/api/"):
+            return jsonify({"error": "未授权"}), 401
+        return redirect(url_for("login"))
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        token = (request.form.get("token") or "").strip()
+        if token == _ACCESS_TOKEN:
+            session["authed"] = True
+            return redirect(url_for("index"))
+        return render_template("login.html", error="Token 错误")
+    return render_template("login.html", error=None)
+
+
+@app.route("/logout")
+def logout():
+    session.pop("authed", None)
+    return redirect(url_for("login"))
 
 
 @app.route("/")

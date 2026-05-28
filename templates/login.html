@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>资金流观测台 - 登录</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&family=JetBrains+Mono:wght@400;500&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;
+  background:#f5f6fa;
+  min-height:100vh;
+  display:flex;align-items:center;justify-content:center;
+}
+.card{
+  background:#fff;
+  border:1px solid #e8eaef;
+  border-radius:12px;
+  padding:40px;
+  width:380px;
+  max-width:90vw;
+  box-shadow:0 4px 24px rgba(0,0,0,0.06);
+  text-align:center;
+}
+.logo{
+  width:44px;height:44px;
+  background:#c62a2e;
+  border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 16px;
+}
+.logo svg{width:20px;height:20px;fill:none;stroke:#fff;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;}
+.title{
+  font-family:'Noto Serif SC','Songti SC',Georgia,serif;
+  font-size:20px;font-weight:700;
+  margin-bottom:4px;
+}
+.title span{color:#c62a2e;}
+.subtitle{font-size:13px;color:#9ca3af;margin-bottom:28px;}
+.input{
+  width:100%;padding:10px 14px;
+  border:1px solid #e8eaef;border-radius:8px;
+  font-size:14px;font-family:'JetBrains Mono',monospace;
+  outline:none;transition:border-color 0.2s;
+  text-align:center;letter-spacing:0.15em;
+}
+.input:focus{border-color:#c62a2e;box-shadow:0 0 0 3px rgba(198,42,46,0.06);}
+.btn{
+  width:100%;margin-top:14px;padding:10px;
+  border:none;border-radius:8px;
+  background:#c62a2e;color:#fff;
+  font-size:14px;font-weight:500;cursor:pointer;
+  transition:background 0.15s;
+}
+.btn:hover{background:#b01d21;}
+.error{
+  color:#c62a2e;font-size:13px;
+  margin-bottom:12px;padding:8px 12px;
+  background:#fef2f2;border-radius:6px;
+}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <svg viewBox="0 0 24 24"><polyline points="22 7 18 7 15 16 9 2 6 11 2 11"/></svg>
+  </div>
+  <div class="title">资金流<span>观测台</span></div>
+  <div class="subtitle">输入 Access Token 登录</div>
+  {% if error %}
+    <div class="error">{{ error }}</div>
+  {% endif %}
+  <form method="post">
+    <input class="input" type="password" name="token" placeholder="Token" autofocus>
+    <button class="btn" type="submit">登录</button>
+  </form>
+</div>
+</body>
+</html>
